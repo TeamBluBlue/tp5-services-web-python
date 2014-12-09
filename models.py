@@ -17,8 +17,3 @@ class Publication(ndb.Model):
     date = ndb.DateProperty(required=True)
     noCreateur = ndb.IntegerProperty(required=True)
     noBabillard = ndb.IntegerProperty(required=True)
-
-
-class DemandeAmi(ndb.Model):
-    date = ndb.DateProperty(required=True)
-    
