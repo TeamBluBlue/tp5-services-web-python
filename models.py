@@ -2,6 +2,7 @@ from google.appengine.ext import ndb
 
 
 class Membre(ndb.Model):
+    prenom = ndb.StringProperty(required=True)
     nom = ndb.StringProperty(required=True)
     sexe = ndb.StringProperty(choices=["M", "F"], required=True)
     dateNaissance = ndb.DateProperty(required=True)
