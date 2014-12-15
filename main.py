@@ -8,7 +8,7 @@ import json
 
 from google.appengine.ext import ndb
 from google.appengine.ext import db
-from models import Membre
+from models import Membre, Publication
 from datetime import date
 # from time import strptime
 
@@ -86,8 +86,6 @@ class MembreHandler(webapp2.RequestHandler):
             mem.motPasse = mem_json['motPasse']
 
             # Création ou modification de l'entité "Personne".
-            # Note : La propriété "dateDernModif" n'est pas spécifiée
-            # car elle est automatique.
             mem.put()
 
             # Configuration du code de statut HTTP (201 ou 204).
@@ -158,8 +156,8 @@ class MembreHandler(webapp2.RequestHandler):
                 # Paramètre "nom"
                 nom = self.request.get('nom')
                 if (nom != ''):
-                    requete = requete.filter(Membre.nom == nom or
-                                             Membre.prenom == nom)
+                    requete = requete.filter(ndb.OR(Membre.nom == nom,
+                                                    Membre.prenom == nom))
 
                 # Paramètre "ville-actuelle"
                 villeAct = self.request.get('ville-actuelle')
@@ -176,6 +174,7 @@ class MembreHandler(webapp2.RequestHandler):
                 if (sexe == 'M' or sexe == 'F'):
                     requete = requete.filter(Membre.sexe == sexe)
 
+                requete = requete.order(Membre.nom).fetch(20)
                 #  Parcours des personnes retournées par la requête.
                 for mem in requete:
                     mem_dict = mem.to_dict()
@@ -186,7 +185,7 @@ class MembreHandler(webapp2.RequestHandler):
                 json_data = json.dumps(list_mem, default=serialiser_pour_json)
 
             self.response.set_status(200)
-            self.response.headers['Content-Type'] = ('application/json;' +
+            self.response.headers['Content-Type'] = ('application/json;' + 
                                                      ' charset=utf-8')
             self.response.out.write(json_data)
 
@@ -208,11 +207,88 @@ class MainPageHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         self.response.out.write('Travail Pratique "Tp-ython-5" en fonction!')
 
+
+class UtilitaireHandler(webapp2.RequestHandler):
+
+    def delete(self):
+        """ Permet de supprimer toutes les entités existantes
+        """
+        try:
+            # Suppression de toutes les publications.
+            ndb.delete_multi(Publication.query().fetch(keys_only=True))
+            # Suppression de tous les membres.
+            ndb.delete_multi(Membre.query().fetch(keys_only=True))
+
+            # No Content.
+            self.response.set_status(204)
+
+        except (db.BadValueError, ValueError, KeyError):
+            logging.error("%s", traceback.format_exc())
+            self.error(400)
+
+        except Exception:
+            logging.error("%s", traceback.format_exc())
+            self.error(500)
+
+    def post(self):
+
+        try:
+            fichierJson = open("twitface.json")
+            bdd = json.load(fichierJson)
+            fichierJson.close()
+
+            for mem_json in bdd["membres"]:
+                cle = ndb.Key("Membre", int(mem_json["MemNo"]))
+                mem = Membre(key=cle)
+                mem.prenom = mem_json['MemNom']
+                mem.nom = mem_json['MemNom']
+                mem.sexe = mem_json['MemSexe']
+                mem.dateNaissance = datetime.datetime.strptime(mem_json['MemDateNaissance'], "%Y-%m-%d")
+                mem.villeOrigine = mem_json['MemVilleOrigine']
+                mem.villeActuelle = mem_json['MemVilleActuelle']
+                mem.courriel = mem_json['MemCourriel']
+                mem.nomUtil = mem_json['MemNomUtil']
+                mem.motPasse = mem_json['MemMotPasse']
+
+                mem.put()
+
+            for pub_json in bdd["publications"]:
+                cle = ndb.Key("Publication", int(pub_json["PubNo"]))
+                pub = Publication(key=cle)
+                pub.texte = pub_json["PubTexte"]
+                pub.date = datetime.datetime.strptime(pub_json["PubDate"], "%Y-%m-%d")
+                pub.noCreateur = pub_json["PubNoCreateur"]
+                pub.noBabillard = pub_json["PubNoBabillard"]
+
+            self.response.set_status(201)
+
+            # Ajout de l'URI de la ressource qui vient d'être créée
+            # dans l'en-tête HTTP "Location" de la réponse.
+            # Note : On utilise l'identifiant généré (et non pas la clé).
+            self.response.headers['Location'] = ("/membres")
+
+            # Le corps de la réponse contiendra une représentation en JSON
+            # de l'animal qui vient d'être créé.
+            self.response.headers['Content-Type'] = ('application/json;' + 
+                                                     ' charset=utf-8')
+            self.response.out.write()
+
+        except (db.BadValueError, ValueError, KeyError):
+            logging.error("%s", traceback.format_exc())
+            self.error(400)
+
+        except Exception:
+            logging.error("%s", traceback.format_exc())
+            self.error(500)
+
 app = webapp2.WSGIApplication(
     [
         webapp2.Route(r'/',
                       handler=MainPageHandler,
                       methods=['GET']),
+        webapp2.Route(r'/datastore',
+                      handler=UtilitaireHandler,
+                      methods=['POST', 'DELETE']),
         # Cet URI utilise "PersonneHandler.get" et "PersonneHandler.delete"
         # sans le "path parameter" "nas".
         webapp2.Route(r'/membres',
