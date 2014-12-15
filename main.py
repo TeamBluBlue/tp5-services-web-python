@@ -99,6 +99,41 @@ class MainPageHandler(webapp2.RequestHandler):
         self.response.out.write('Travail Pratique "Tp-ython-5" en fonction!')
 
 
+class DemandeHandler(webapp2.RequestHandler):
+
+    def get(self, mem_no):
+        try:
+            # Clé du propriétaire.
+            cle_membre = ndb.Key('Membre', int(mem_no))
+            # Le propriétaire doit exister.
+            if (cle_membre.get() is None):
+                self.error(404)
+                return
+
+            # Tous les animaux pour un propriétaire donné.
+            list_dem = []
+
+            for dem in Demande.query(ancestor=cle_membre).fetch():
+                dem_dict = dem.to_dict()
+                dem_dict['noInvite'] = cle_membre.id()
+                list_dem.append(dem_dict)
+
+            json_data = json.dumps(list_dem, default=serialiser_pour_json)
+
+            self.response.set_status(200)
+            self.response.headers['Content-Type'] = ('application/json;' +
+                                                     ' charset=utf-8')
+            self.response.out.write(json_data)
+
+        except (db.BadValueError, ValueError, KeyError):
+            logging.error("%s", traceback.format_exc())
+            self.error(400)
+
+        except Exception:
+            logging.error("%s", traceback.format_exc())
+            self.error(500)
+
+
 class AmisHandler(webapp2.RequestHandler):
 
     def get(self, mem_no):
@@ -286,6 +321,9 @@ app = webapp2.WSGIApplication(
                       methods=['POST', 'DELETE']),
         webapp2.Route(r'/membres',
                       handler=MembreHandler,
+                      methods=['GET']),
+        webapp2.Route(r'/membres/<mem_no>/demandes-amitie',
+                      handler=DemandeHandler,
                       methods=['GET']),
         webapp2.Route(r'/amis/<mem_no>',
                       handler=AmisHandler,
