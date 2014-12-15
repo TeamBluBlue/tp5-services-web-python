@@ -2,6 +2,7 @@ from google.appengine.ext import ndb
 
 
 class Membre(ndb.Model):
+    prenom = ndb.StringProperty(required=True)
     nom = ndb.StringProperty(required=True)
     sexe = ndb.StringProperty(choices=["M", "F"], required=True)
     dateNaissance = ndb.DateProperty(required=True)
@@ -19,6 +20,13 @@ class Publication(ndb.Model):
     noBabillard = ndb.IntegerProperty(required=True)
 
 
-class DemandeAmi(ndb.Model):
+class Demande(ndb.Model):
+    no = ndb.IntegerProperty(required=True)
     date = ndb.DateProperty(required=True)
-    
+    noDemandeur = ndb.IntegerProperty(required=True)
+
+
+class Amis(ndb.Model):
+    no1 = ndb.IntegerProperty(required=True)
+    no2 = ndb.IntegerProperty(required=True)
+    dateAmitie = ndb.DateProperty(required=True)
