@@ -4,13 +4,10 @@ import logging
 import traceback
 import datetime
 import json
-# import time
 
 from google.appengine.ext import ndb
 from google.appengine.ext import db
-from models import Membre, Publication
-from datetime import date
-# from time import strptime
+from models import Membre, Publication, Demande, Amis
 
 
 def serialiser_pour_json(objet):
@@ -72,14 +69,14 @@ class MembreHandler(webapp2.RequestHandler):
             #  Parcours des personnes retournées par la requête.
             for mem in requete:
                 mem_dict = mem.to_dict()
-                mem_dict['mem_no'] = mem.key.id()
+                mem_dict['no'] = mem.key.id()
                 # Ajout de la personne dans la liste.
                 list_mem.append(mem_dict)
 
             json_data = json.dumps(list_mem, default=serialiser_pour_json)
 
             self.response.set_status(200)
-            self.response.headers['Content-Type'] = ('application/json;' +
+            self.response.headers['Content-Type'] = ('application/json;' + 
                                                      ' charset=utf-8')
             self.response.out.write(json_data)
 
@@ -102,12 +99,62 @@ class MainPageHandler(webapp2.RequestHandler):
         self.response.out.write('Travail Pratique "Tp-ython-5" en fonction!')
 
 
+class AmisHandler(webapp2.RequestHandler):
+
+    def get(self, mem_no):
+        try:
+            # Clé du membre.
+            cle_membre = ndb.Key('Membre', int(mem_no))
+            # Le propriétaire doit exister.
+            if (cle_membre.get() is None):
+                self.error(404)
+                return
+
+            # Tous les membres.
+            list_amis = []
+
+            # Création d'une requête sur le "Datastore".
+            for amis in Amis.query().filter(Amis.no1 == int(mem_no)).fetch():
+                ami = Membre.get_by_id(amis.no2)
+                ami_dict = ami.to_dict()
+                ami_dict['id'] = ami.key.id()
+                # Ajout de la personne dans la liste.
+                list_amis.append(ami_dict)
+
+            for amis in Amis.query().filter(Amis.no2 == int(mem_no)).fetch():
+                ami = Membre.get_by_id(amis.no1)
+                ami_dict = ami.to_dict()
+                ami_dict['id'] = ami.key.id()
+                ami_dict['dateAmitie'] = amis.dateAmitie
+                # Ajout de la personne dans la liste.
+                list_amis.append(ami_dict)
+
+            json_data = json.dumps(list_amis, default=serialiser_pour_json)
+
+            self.response.set_status(200)
+            self.response.headers['Content-Type'] = ('application/json;' + 
+                                                     ' charset=utf-8')
+            self.response.out.write(json_data)
+
+        except (db.BadValueError, ValueError, KeyError):
+            logging.error("%s", traceback.format_exc())
+            self.error(400)
+
+        except Exception:
+            logging.error("%s", traceback.format_exc())
+            self.error(500)            
+
+
 class UtilitaireHandler(webapp2.RequestHandler):
 
     def delete(self):
         """ Permet de supprimer toutes les entités existantes
         """
         try:
+            # Suppression de toutes les demandes d'amitié.
+            ndb.delete_multi(Amis.query().fetch(keys_only=True))
+            # Suppression de toutes les demandes d'amitié.
+            ndb.delete_multi(Demande.query().fetch(keys_only=True))
             # Suppression de toutes les publications.
             ndb.delete_multi(Publication.query().fetch(keys_only=True))
             # Suppression de tous les membres.
@@ -127,15 +174,17 @@ class UtilitaireHandler(webapp2.RequestHandler):
     def post(self):
 
         try:
-            fichierJson = open("twitface.json")
-            bdd = json.load(fichierJson)
-            fichierJson.close()
+            fichier_json = open("twitface.json")
+            bd = json.load(fichier_json)
+            fichier_json.close()
 
-            for mem_json in bdd["membres"]:
+            list_mem = []
+            for mem_json in bd["membres"]:
+                nom_split = mem_json['MemNom'].split(" ", 1)
                 cle = ndb.Key("Membre", int(mem_json["MemNo"]))
                 mem = Membre(key=cle)
-                mem.prenom = mem_json['MemNom']
-                mem.nom = mem_json['MemNom']
+                mem.prenom = nom_split[0]
+                mem.nom = nom_split[1]
                 mem.sexe = mem_json['MemSexe']
                 mem.dateNaissance = datetime.datetime.strptime(mem_json['MemDateNaissance'], "%Y-%m-%d")
                 mem.villeOrigine = mem_json['MemVilleOrigine']
@@ -146,26 +195,69 @@ class UtilitaireHandler(webapp2.RequestHandler):
 
                 mem.put()
 
-            for pub_json in bdd["publications"]:
+                mem_dict = mem.to_dict()
+                mem_dict['no'] = mem.key.id()
+
+                list_mem.append(mem_dict)
+
+            list_pub = []
+            for pub_json in bd["publications"]:
                 cle = ndb.Key("Publication", int(pub_json["PubNo"]))
                 pub = Publication(key=cle)
                 pub.texte = pub_json["PubTexte"]
                 pub.date = datetime.datetime.strptime(pub_json["PubDate"], "%Y-%m-%d")
-                pub.noCreateur = pub_json["PubNoCreateur"]
-                pub.noBabillard = pub_json["PubNoBabillard"]
+                pub.noCreateur = int(pub_json["MemNoCreateur"])
+                pub.noBabillard = int(pub_json["MemNoBabillard"])
 
+                pub.put()
+
+                pub_dict = pub.to_dict()
+                pub_dict['pubNo'] = pub.key.id()
+
+                list_pub.append(pub_dict)
+
+            list_dem = []
+            for dem_json in bd["demandes_amis"]:
+                cle_proprio = ndb.Key("Membre", int(dem_json["MemNoInvite"]))
+                dem = Demande(parent=cle_proprio)
+                dem.no = int(dem_json["DemAmiNo"])
+                dem.date = datetime.datetime.strptime(dem_json["DemAmiDate"], "%Y-%m-%d")
+                dem.noDemandeur = int(dem_json["MemNoDemandeur"])
+
+                cle_dem = dem.put()
+
+                dem_dict = dem.to_dict()
+                dem_dict['id'] = cle_dem.id()
+                dem_dict['parent-noInvite'] = cle_proprio.id()
+
+                list_dem.append(dem_dict)
+
+            list_amis = []
+            i = 0
+            for amis_json in bd["amis"]:
+                cle = ndb.Key("Amis", i)
+                amis = Amis(key=cle)
+                amis.no1 = int(amis_json["MemNo1"])
+                amis.no2 = int(amis_json["MemNo2"])
+                amis.dateAmitie = datetime.datetime.strptime(amis_json["DateAmitie"], "%Y-%m-%d")
+                
+                amis.put()
+
+                amis_dict = amis.to_dict()
+                amis_dict['id'] = amis.key.id()
+
+                list_amis.append(amis_dict)
+                i += 1
+                
             self.response.set_status(201)
 
-            # Ajout de l'URI de la ressource qui vient d'être créée
-            # dans l'en-tête HTTP "Location" de la réponse.
-            # Note : On utilise l'identifiant généré (et non pas la clé).
-            self.response.headers['Location'] = ("/membres")
+            # self.response.headers['Location'] = ("/membres")
 
             # Le corps de la réponse contiendra une représentation en JSON
-            # de l'animal qui vient d'être créé.
+            # de la bd qui vient d'être créée.
             self.response.headers['Content-Type'] = ('application/json;' + 
                                                      ' charset=utf-8')
-            self.response.out.write()
+            self.response.out.write(json.dumps([list_mem, list_pub, list_dem, list_amis], default=serialiser_pour_json))
 
         except (db.BadValueError, ValueError, KeyError):
             logging.error("%s", traceback.format_exc())
@@ -183,14 +275,11 @@ app = webapp2.WSGIApplication(
         webapp2.Route(r'/datastore',
                       handler=UtilitaireHandler,
                       methods=['POST', 'DELETE']),
-        # Cet URI utilise "PersonneHandler.get" et "PersonneHandler.delete"
-        # sans le "path parameter" "nas".
         webapp2.Route(r'/membres',
                       handler=MembreHandler,
                       methods=['GET']),
-
-        webapp2.Route(r'/membres',
-                      handler=MembreHandler,
+        webapp2.Route(r'/amis/<mem_no>',
+                      handler=AmisHandler,
                       methods=['GET']),
     ],
     debug=True)

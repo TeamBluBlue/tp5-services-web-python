@@ -18,3 +18,15 @@ class Publication(ndb.Model):
     date = ndb.DateProperty(required=True)
     noCreateur = ndb.IntegerProperty(required=True)
     noBabillard = ndb.IntegerProperty(required=True)
+
+
+class Demande(ndb.Model):
+    no = ndb.IntegerProperty(required=True)
+    date = ndb.DateProperty(required=True)
+    noDemandeur = ndb.IntegerProperty(required=True)
+
+
+class Amis(ndb.Model):
+    no1 = ndb.IntegerProperty(required=True)
+    no2 = ndb.IntegerProperty(required=True)
+    dateAmitie = ndb.DateProperty(required=True)

@@ -14,3 +14,14 @@ indexes:
   properties:
   - name: prenom
   - name: nom
+
+- kind: Membre
+  properties:
+  - name: prenom
+  - name: villeOrigine
+  - name: nom
+
+- kind: Membre
+  properties:
+  - name: sexe
+  - name: nom
