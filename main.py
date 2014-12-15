@@ -47,8 +47,8 @@ class MembreHandler(webapp2.RequestHandler):
             # Paramètre "nom"
             nom = self.request.get('nom')
             if (nom != ''):
-                requete = requete.filter(ndb.OR(Membre.nom == nom,
-                                                Membre.prenom == nom))
+                requete = requete.filter(
+                    ndb.OR(Membre.nom == nom, Membre.prenom == nom))
 
             # Paramètre "ville-actuelle"
             villeAct = self.request.get('ville-actuelle')
@@ -76,8 +76,8 @@ class MembreHandler(webapp2.RequestHandler):
             json_data = json.dumps(list_mem, default=serialiser_pour_json)
 
             self.response.set_status(200)
-            self.response.headers['Content-Type'] = ('application/json;' + 
-                                                     ' charset=utf-8')
+            self.response.headers[
+                'Content-Type'] = ('application/json; charset=utf-8')
             self.response.out.write(json_data)
 
         except (db.BadValueError, ValueError, KeyError):
@@ -132,8 +132,8 @@ class AmisHandler(webapp2.RequestHandler):
             json_data = json.dumps(list_amis, default=serialiser_pour_json)
 
             self.response.set_status(200)
-            self.response.headers['Content-Type'] = ('application/json;' + 
-                                                     ' charset=utf-8')
+            self.response.headers[
+                'Content-Type'] = ('application/json; charset=utf-8')
             self.response.out.write(json_data)
 
         except (db.BadValueError, ValueError, KeyError):
@@ -142,7 +142,7 @@ class AmisHandler(webapp2.RequestHandler):
 
         except Exception:
             logging.error("%s", traceback.format_exc())
-            self.error(500)            
+            self.error(500)
 
 
 class UtilitaireHandler(webapp2.RequestHandler):
@@ -186,7 +186,8 @@ class UtilitaireHandler(webapp2.RequestHandler):
                 mem.prenom = nom_split[0]
                 mem.nom = nom_split[1]
                 mem.sexe = mem_json['MemSexe']
-                mem.dateNaissance = datetime.datetime.strptime(mem_json['MemDateNaissance'], "%Y-%m-%d")
+                mem.dateNaissance = datetime.datetime.strptime(
+                    mem_json['MemDateNaissance'], "%Y-%m-%d")
                 mem.villeOrigine = mem_json['MemVilleOrigine']
                 mem.villeActuelle = mem_json['MemVilleActuelle']
                 mem.courriel = mem_json['MemCourriel']
@@ -205,7 +206,8 @@ class UtilitaireHandler(webapp2.RequestHandler):
                 cle = ndb.Key("Publication", int(pub_json["PubNo"]))
                 pub = Publication(key=cle)
                 pub.texte = pub_json["PubTexte"]
-                pub.date = datetime.datetime.strptime(pub_json["PubDate"], "%Y-%m-%d")
+                pub.date = datetime.datetime.strptime(
+                    pub_json["PubDate"], "%Y-%m-%d")
                 pub.noCreateur = int(pub_json["MemNoCreateur"])
                 pub.noBabillard = int(pub_json["MemNoBabillard"])
 
@@ -221,7 +223,8 @@ class UtilitaireHandler(webapp2.RequestHandler):
                 cle_proprio = ndb.Key("Membre", int(dem_json["MemNoInvite"]))
                 dem = Demande(parent=cle_proprio)
                 dem.no = int(dem_json["DemAmiNo"])
-                dem.date = datetime.datetime.strptime(dem_json["DemAmiDate"], "%Y-%m-%d")
+                dem.date = datetime.datetime.strptime(
+                    dem_json["DemAmiDate"], "%Y-%m-%d")
                 dem.noDemandeur = int(dem_json["MemNoDemandeur"])
 
                 cle_dem = dem.put()
@@ -239,8 +242,9 @@ class UtilitaireHandler(webapp2.RequestHandler):
                 amis = Amis(key=cle)
                 amis.no1 = int(amis_json["MemNo1"])
                 amis.no2 = int(amis_json["MemNo2"])
-                amis.dateAmitie = datetime.datetime.strptime(amis_json["DateAmitie"], "%Y-%m-%d")
-                
+                amis.dateAmitie = datetime.datetime.strptime(
+                    amis_json["DateAmitie"], "%Y-%m-%d")
+
                 amis.put()
 
                 amis_dict = amis.to_dict()
@@ -248,16 +252,21 @@ class UtilitaireHandler(webapp2.RequestHandler):
 
                 list_amis.append(amis_dict)
                 i += 1
-                
+
             self.response.set_status(201)
 
             # self.response.headers['Location'] = ("/membres")
 
             # Le corps de la réponse contiendra une représentation en JSON
             # de la bd qui vient d'être créée.
-            self.response.headers['Content-Type'] = ('application/json;' + 
-                                                     ' charset=utf-8')
-            self.response.out.write(json.dumps([list_mem, list_pub, list_dem, list_amis], default=serialiser_pour_json))
+            self.response.headers[
+                'Content-Type'] = ('application/json; charset=utf-8')
+            self.response.out.write(
+                json.dumps(
+                    [list_mem, list_pub, list_dem, list_amis],
+                    default=serialiser_pour_json
+                )
+            )
 
         except (db.BadValueError, ValueError, KeyError):
             logging.error("%s", traceback.format_exc())
